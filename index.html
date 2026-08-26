@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colony Locator</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --accent-soft: rgba(37,99,235,.15);
+      --saved: #7c3aed;
+      --danger: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .uploads {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    input[type="file"],
+    input[type="text"] {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      font-size: 16px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: white;
+      color: var(--text);
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      background: #fafafa;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .viewer-shell {
+      overflow: auto;
+      background: #111827;
+      border-radius: 10px;
+      padding: 8px;
+      min-height: 320px;
+    }
+
+    #viewer {
+      position: relative;
+      display: inline-block;
+      min-width: 100%;
+    }
+
+    #viewer img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      cursor: crosshair;
+    }
+
+    .placeholder {
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #d1d5db;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .hover-box,
+    .pick-box,
+    .saved-box {
+      position: absolute;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    .hover-box {
+      border: 1px solid white;
+      background: rgba(255,255,255,.08);
+    }
+
+    .pick-box {
+      border: 3px solid var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .saved-box {
+      border: 2px dashed var(--saved);
+    }
+
+    .badge {
+      position: absolute;
+      pointer-events: none;
+      transform: translate(-50%, -115%);
+      background: #111827;
+      color: white;
+      border-radius: 6px;
+      padding: 3px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,.3);
+    }
+
+    .side {
+      display: grid;
+      gap: 14px;
+    }
+
+    .find-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .find-row input {
+      margin: 0;
+      flex: 1;
+      min-width: 0;
+      text-transform: uppercase;
+    }
+
+    .helper {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+
+    .selected-name {
+      font-size: 34px;
+      font-weight: 700;
+      margin: 2px 0 14px;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0;
+    }
+
+    dt {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    dd {
+      margin: 2px 0 0;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .wide { grid-column: 1 / -1; }
+
+    .full {
+      width: 100%;
+      margin-top: 14px;
+    }
+
+    .selection-list {
+      display: grid;
+      gap: 7px;
+      max-height: 260px;
+      overflow: auto;
+      margin-top: 10px;
+    }
+
+    .selection-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+    }
+
+    .selection-item button:first-child {
+      flex: 1;
+      text-align: left;
+      border: none;
+      padding: 7px 8px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .actions button:first-child { flex: 1; }
+
+    .privacy {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .uploads { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Colony Locator</h1>
+    <p class="subtitle">Upload a grid image and its matching <code>.iris</code> file, then click a colony or search for a plate position.</p>
+
+    <div class="layout">
+      <section class="card">
+        <div class="uploads">
+          <label>
+            Grid image (.grid.jpg)
+            <input id="gridFile" type="file" accept="image/jpeg,image/png,image/webp" />
+          </label>
+          <label>
+            Iris output (.iris)
+            <input id="irisFile" type="file" accept=".iris,text/plain" />
+          </label>
+        </div>
+
+        <div id="status" class="status" aria-live="polite">
+          Upload the matching grid image and .iris file.
+        </div>
+
+        <div class="viewer-shell">
+          <div id="viewer">
+            <div class="placeholder">Your Iris grid image will appear here.</div>
+          </div>
+        </div>
+
+        <p class="privacy">Files are processed locally in your browser. They are not uploaded anywhere by this page.</p>
+      </section>
+
+      <aside class="side">
+        <section class="card">
+          <strong>Find a position</strong>
+          <form id="findForm" class="find-row" style="margin-top:10px;">
+            <input id="findInput" type="text" placeholder="e.g. AA32" autocomplete="off" />
+            <button class="primary" type="submit">Find</button>
+          </form>
+          <p id="findMessage" class="helper" aria-live="polite">Type a coordinate to highlight it.</p>
+        </section>
+
+        <section class="card">
+          <div class="helper" style="margin-top:0;">Selected colony</div>
+          <div id="position" class="selected-name">—</div>
+          <dl>
+            <div><dt>Row</dt><dd id="rowValue">—</dd></div>
+            <div><dt>Column</dt><dd id="colValue">—</dd></div>
+            <div><dt>Size</dt><dd id="sizeValue">—</dd></div>
+            <div><dt>Circularity</dt><dd id="circValue">—</dd></div>
+            <div class="wide"><dt>Opacity</dt><dd id="opacityValue">—</dd></div>
+          </dl>
+          <button id="addSelection" class="full" type="button" disabled>Add to selected list</button>
+        </section>
+
+        <section class="card">
+          <div style="display:flex;justify-content:space-between;gap:8px;">
+            <strong>Selected positions</strong>
+            <span id="selectionCount" class="helper" style="margin:0;">0</span>
+          </div>
+          <div id="selectionList" class="selection-list">
+            <div class="helper">None yet.</div>
+          </div>
+          <div class="actions">
+            <button id="exportBtn" class="primary" type="button" disabled>Export CSV</button>
+            <button id="clearBtn" type="button" disabled>Clear</button>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const els = {
+      gridFile: document.getElementById('gridFile'),
+      irisFile: document.getElementById('irisFile'),
+      status: document.getElementById('status'),
+      viewer: document.getElementById('viewer'),
+      findForm: document.getElementById('findForm'),
+      findInput: document.getElementById('findInput'),
+      findMessage: document.getElementById('findMessage'),
+      position: document.getElementById('position'),
+      rowValue: document.getElementById('rowValue'),
+      colValue: document.getElementById('colValue'),
+      sizeValue: document.getElementById('sizeValue'),
+      circValue: document.getElementById('circValue'),
+      opacityValue: document.getElementById('opacityValue'),
+      addSelection: document.getElementById('addSelection'),
+      selectionList: document.getElementById('selectionList'),
+      selectionCount: document.getElementById('selectionCount'),
+      exportBtn: document.getElementById('exportBtn'),
+      clearBtn: document.getElementById('clearBtn')
+    };
+
+    const state = {
+      imageData: null,
+      naturalW: 0,
+      naturalH: 0,
+      iris: null,
+      current: null,
+      saved: []
+    };
+
+    function lettersFromRow(n) {
+      let s = '';
+      while (n > 0) {
+        n--;
+        s = String.fromCharCode(65 + (n % 26)) + s;
+        n = Math.floor(n / 26);
+      }
+      return s;
+    }
+
+    function rowFromLetters(s) {
+      let n = 0;
+      for (const ch of s) n = n * 26 + (ch.charCodeAt(0) - 64);
+      return n;
+    }
+
+    function coord(row, col) {
+      return lettersFromRow(row) + col;
+    }
+
+    function setStatus(message, isError = false) {
+      els.status.textContent = message;
+      els.status.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+    }
+
+    function parseIris(text) {
+      const top = text.match(/#top left of the grid found at \(([-\d.]+)\s*,\s*([-\d.]+)\)/i);
+      const bottom = text.match(/#bottom right of the grid found at \(([-\d.]+)\s*,\s*([-\d.]+)\)/i);
+
+      if (!top || !bottom) {
+        throw new Error('Could not find grid boundaries in this .iris file.');
+      }
+
+      const lines = text.split(/\r?\n/);
+      let headerIndex = -1;
+
+      for (let i = 0; i < lines.length; i++) {
+        const normalized = lines[i].trim().replace(/\t+/g, ' ').replace(/\s+/g, ' ');
+        if (/^row column /i.test(normalized) || normalized.toLowerCase() === 'row column') {
+          headerIndex = i;
+          break;
+        }
+      }
+
+      if (headerIndex < 0) {
+        throw new Error('Could not find the colony data table.');
+      }
+
+      let headers = lines[headerIndex].trim().split(/\t+/).map(v => v.trim().toLowerCase());
+      if (headers.length < 2) {
+        headers = lines[headerIndex].trim().split(/\s+/).map(v => v.trim().toLowerCase());
+      }
+
+      const records = [];
+
+      for (let i = headerIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line.startsWith('#')) continue;
+
+        let parts = line.split(/\t+/);
+        if (parts.length < 2) parts = line.split(/\s+/);
+
+        const rec = {};
+        headers.forEach((h, j) => rec[h] = parts[j] ?? '');
+
+        const row = Number(rec.row);
+        const column = Number(rec.column);
+
+        if (Number.isFinite(row) && Number.isFinite(column)) {
+          records.push({ ...rec, row, column });
+        }
+      }
+
+      if (!records.length) {
+        throw new Error('No colony records were found in the .iris file.');
+      }
+
+      const rows = Math.max(...records.map(r => r.row));
+      const cols = Math.max(...records.map(r => r.column));
+
+      return {
+        left: Number(top[1]),
+        top: Number(top[2]),
+        right: Number(bottom[1]),
+        bottom: Number(bottom[2]),
+        rows,
+        cols,
+        records,
+        map: new Map(records.map(r => [`${r.row}:${r.column}`, r]))
+      };
+    }
+
+    function resetCurrent() {
+      state.current = null;
+      els.position.textContent = '—';
+      els.rowValue.textContent = '—';
+      els.colValue.textContent = '—';
+      els.sizeValue.textContent = '—';
+      els.circValue.textContent = '—';
+      els.opacityValue.textContent = '—';
+      els.addSelection.disabled = true;
+    }
+
+    function renderImage() {
+      els.viewer.innerHTML = '';
+      resetCurrent();
+
+      if (!state.imageData) {
+        els.viewer.innerHTML = '<div class="placeholder">Your Iris grid image will appear here.</div>';
+        return;
+      }
+
+      const img = document.createElement('img');
+      img.src = state.imageData;
+      img.alt = 'Uploaded colony grid image';
+      els.viewer.appendChild(img);
+
+      img.addEventListener('load', () => {
+        state.naturalW = img.naturalWidth;
+        state.naturalH = img.naturalHeight;
+
+        if (!state.iris) return;
+
+        const hover = document.createElement('div');
+        hover.id = 'hoverBox';
+        hover.className = 'hover-box';
+        hover.hidden = true;
+
+        const pick = document.createElement('div');
+        pick.id = 'pickBox';
+        pick.className = 'pick-box';
+        pick.hidden = true;
+
+        const badge = document.createElement('div');
+        badge.id = 'badge';
+        badge.className = 'badge';
+        badge.hidden = true;
+
+        els.viewer.append(hover, pick, badge);
+
+        img.addEventListener('mousemove', onMove);
+        img.addEventListener('mouseleave', () => hover.hidden = true);
+        img.addEventListener('click', onClick);
+
+        renderSavedBoxes();
+      }, { once: true });
+    }
+
+    function geometry() {
+      const img = els.viewer.querySelector('img');
+      if (!img || !state.iris || !state.naturalW || !state.naturalH) return null;
+
+      const sx = img.clientWidth / state.naturalW;
+      const sy = img.clientHeight / state.naturalH;
+      const g = state.iris;
+
+      return {
+        img,
+        left: g.left * sx,
+        top: g.top * sy,
+        right: g.right * sx,
+        bottom: g.bottom * sy,
+        cellW: (g.right - g.left) * sx / g.cols,
+        cellH: (g.bottom - g.top) * sy / g.rows
+      };
+    }
+
+    function placeBox(box, row, col) {
+      const g = geometry();
+      if (!g) return;
+
+      box.style.left = `${g.left + (col - 1) * g.cellW}px`;
+      box.style.top = `${g.top + (row - 1) * g.cellH}px`;
+      box.style.width = `${g.cellW}px`;
+      box.style.height = `${g.cellH}px`;
+      box.hidden = false;
+    }
+
+    function eventCell(ev) {
+      const g = geometry();
+      if (!g) return null;
+
+      const rect = g.img.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      const y = ev.clientY - rect.top;
+
+      if (x < g.left || x > g.right || y < g.top || y > g.bottom) return null;
+
+      const col = Math.min(state.iris.cols, Math.max(1, Math.floor((x - g.left) / g.cellW) + 1));
+      const row = Math.min(state.iris.rows, Math.max(1, Math.floor((y - g.top) / g.cellH) + 1));
+
+      return { row, col };
+    }
+
+    function onMove(ev) {
+      const cell = eventCell(ev);
+      const hover = document.getElementById('hoverBox');
+      if (!hover) return;
+
+      if (!cell) {
+        hover.hidden = true;
+        return;
+      }
+
+      placeBox(hover, cell.row, cell.col);
+    }
+
+    function onClick(ev) {
+      const cell = eventCell(ev);
+      if (cell) selectCell(cell.row, cell.col, false);
+    }
+
+    function selectCell(row, col, scroll = false) {
+      const rec = state.iris?.map.get(`${row}:${col}`);
+      if (!rec) return;
+
+      state.current = rec;
+      const label = coord(row, col);
+
+      els.position.textContent = label;
+      els.rowValue.textContent = row;
+      els.colValue.textContent = col;
+      els.sizeValue.textContent = rec.size || '—';
+      els.circValue.textContent = rec.circularity || '—';
+      els.opacityValue.textContent = rec.opacity || '—';
+      els.addSelection.disabled = false;
+
+      const pick = document.getElementById('pickBox');
+      const badge = document.getElementById('badge');
+
+      if (pick) placeBox(pick, row, col);
+
+      const g = geometry();
+      if (badge && g) {
+        badge.textContent = label;
+        badge.style.left = `${g.left + (col - 0.5) * g.cellW}px`;
+        badge.style.top = `${g.top + (row - 1) * g.cellH}px`;
+        badge.hidden = false;
+      }
+
+      if (scroll && pick) {
+        pick.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    function renderSavedBoxes() {
+      document.querySelectorAll('#viewer .saved-box').forEach(el => el.remove());
+
+      for (const rec of state.saved) {
+        const box = document.createElement('div');
+        box.className = 'saved-box';
+        box.title = coord(rec.row, rec.column);
+        els.viewer.appendChild(box);
+        placeBox(box, rec.row, rec.column);
+      }
+    }
+
+    function renderList() {
+      els.selectionCount.textContent = String(state.saved.length);
+      els.exportBtn.disabled = state.saved.length === 0;
+      els.clearBtn.disabled = state.saved.length === 0;
+
+      els.selectionList.innerHTML = '';
+
+      if (!state.saved.length) {
+        els.selectionList.innerHTML = '<div class="helper">None yet.</div>';
+        renderSavedBoxes();
+        return;
+      }
+
+      state.saved.forEach((rec, i) => {
+        const row = document.createElement('div');
+        row.className = 'selection-item';
+
+        const selectBtn = document.createElement('button');
+        selectBtn.type = 'button';
+        selectBtn.textContent = `${coord(rec.row, rec.column)} · size ${rec.size || '—'}`;
+        selectBtn.addEventListener('click', () => selectCell(rec.row, rec.column, true));
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = 'Remove';
+        removeBtn.addEventListener('click', () => {
+          state.saved.splice(i, 1);
+          renderList();
+        });
+
+        row.append(selectBtn, removeBtn);
+        els.selectionList.appendChild(row);
+      });
+
+      renderSavedBoxes();
+    }
+
+    els.gridFile.addEventListener('change', () => {
+      const file = els.gridFile.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        state.imageData = String(reader.result);
+        renderImage();
+        setStatus(
+          state.iris
+            ? `Ready: ${state.iris.rows} × ${state.iris.cols} grid. Click a colony or type a position.`
+            : 'Grid image loaded. Now upload its matching .iris file.'
+        );
+      };
+
+      reader.onerror = () => setStatus('Could not read the image file locally.', true);
+      reader.readAsDataURL(file);
+    });
+
+    els.irisFile.addEventListener('change', () => {
+      const file = els.irisFile.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        try {
+          state.iris = parseIris(String(reader.result));
+          state.saved = [];
+          state.current = null;
+          renderList();
+          renderImage();
+
+          setStatus(
+            state.imageData
+              ? `Ready: ${state.iris.rows} × ${state.iris.cols} grid (${state.iris.records.length} positions).`
+              : `.iris loaded: ${state.iris.rows} × ${state.iris.cols}. Now upload the matching grid image.`
+          );
+        } catch (err) {
+          state.iris = null;
+          setStatus(err.message || 'Could not parse the .iris file.', true);
+          renderImage();
+        }
+      };
+
+      reader.onerror = () => setStatus('Could not read the .iris file locally.', true);
+      reader.readAsText(file);
+    });
+
+    els.findForm.addEventListener('submit', ev => {
+      ev.preventDefault();
+
+      if (!state.iris || !state.imageData) {
+        els.findMessage.textContent = 'Upload both files first.';
+        return;
+      }
+
+      const raw = els.findInput.value.trim().toUpperCase().replace(/\s+/g, '');
+      const match = raw.match(/^([A-Z]+)(\d+)$/);
+
+      if (!match) {
+        els.findMessage.textContent = 'Use a position such as A5 or AA32.';
+        return;
+      }
+
+      const row = rowFromLetters(match[1]);
+      const col = Number(match[2]);
+
+      if (row < 1 || row > state.iris.rows || col < 1 || col > state.iris.cols) {
+        els.findMessage.textContent = `That position is outside this ${state.iris.rows} × ${state.iris.cols} grid.`;
+        return;
+      }
+
+      selectCell(row, col, true);
+      els.findMessage.textContent = `Highlighted ${coord(row, col)}.`;
+    });
+
+    els.addSelection.addEventListener('click', () => {
+      const rec = state.current;
+      if (!rec) return;
+
+      if (!state.saved.some(x => x.row === rec.row && x.column === rec.column)) {
+        state.saved.push(rec);
+      }
+
+      renderList();
+    });
+
+    els.clearBtn.addEventListener('click', () => {
+      state.saved = [];
+      renderList();
+    });
+
+    els.exportBtn.addEventListener('click', () => {
+      if (!state.saved.length) return;
+
+      const headers = ['position', 'row', 'column', 'size', 'circularity', 'opacity'];
+      const rows = [headers];
+
+      for (const r of state.saved) {
+        rows.push([
+          coord(r.row, r.column),
+          r.row,
+          r.column,
+          r.size || '',
+          r.circularity || '',
+          r.opacity || ''
+        ]);
+      }
+
+      const escapeCsv = value => `"${String(value).replaceAll('"', '""')}"`;
+      const csv = rows.map(row => row.map(escapeCsv).join(',')).join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const a = document.createElement('a');
+        a.href = String(reader.result);
+        a.download = 'iris_selected_positions.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      };
+
+      reader.readAsDataURL(blob);
+    });
+
+    window.addEventListener('resize', () => {
+      if (state.current) selectCell(state.current.row, state.current.column, false);
+      renderSavedBoxes();
+    });
+  </script>
+</body>
+</html>
